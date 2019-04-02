@@ -36,7 +36,7 @@
 #ifndef GMX_SIMD_IMPL_X86_AVX_256_H
 #define GMX_SIMD_IMPL_X86_AVX_256_H
 
-#include "config.h"
+#include "../../config.h"
 
 #include <immintrin.h>
 

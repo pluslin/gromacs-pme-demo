@@ -37,9 +37,10 @@
 #ifndef GMX_EWALD_PME_SPREAD_H
 #define GMX_EWALD_PME_SPREAD_H
 
-#include "gromacs/utility/real.h"
+#include "../utility/real.h"
 
-#include "pme-internal.h"
+//#include "pme-internal.h"
+#include "pme-type.h"
 
 void
 spread_on_grid(struct gmx_pme_t *pme,

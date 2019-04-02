@@ -38,19 +38,20 @@
 
 #include "pme-spread.h"
 
-#include "config.h"
+#include "../../config.h"
 
 #include <assert.h>
 
 #include <algorithm>
 
 // #include "gromacs/ewald/pme.h"
-#include "gromacs/simd/simd.h"
-#include "gromacs/utility/smalloc.h"
+#include "../simd/simd.h"
+//#include "gromacs/utility/smalloc.h"
 
-#include "pme-internal.h"
+//#include "pme-internal.h"
+#include "pme-type.h"
 #include "pme-simd.h"
-#include "pme-spline-work.h"
+//#include "pme-spline-work.h"
 
 //#define WRITE_DATA
 
@@ -64,10 +65,10 @@ static void calc_interpolation_idx(struct gmx_pme_t *pme, pme_atomcomm_t *atc,
     real           *xptr, *fptr, tx, ty, tz;
     real            rxx, ryx, ryy, rzx, rzy, rzz;
     int             nx, ny, nz;
-    int            *g2tx, *g2ty, *g2tz;
-    gmx_bool        bThreads;
+//    int            *g2tx, *g2ty, *g2tz;
+//    gmx_bool        bThreads;
     int            *thread_idx = NULL;
-    thread_plist_t *tpl        = NULL;
+//    thread_plist_t *tpl        = NULL;
     int            *tpl_n      = NULL;
     int             thread_i;
 
@@ -93,22 +94,22 @@ static void calc_interpolation_idx(struct gmx_pme_t *pme, pme_atomcomm_t *atc,
     fclose(fp);
 #endif
 
-    g2tx = pme->pmegrid[grid_index].g2t[XX];
-    g2ty = pme->pmegrid[grid_index].g2t[YY];
-    g2tz = pme->pmegrid[grid_index].g2t[ZZ];
+//     g2tx = pme->pmegrid[grid_index].g2t[XX];
+//     g2ty = pme->pmegrid[grid_index].g2t[YY];
+//     g2tz = pme->pmegrid[grid_index].g2t[ZZ];
 
-    bThreads = (atc->nthread > 1);
-    if (bThreads)
-    {
-        thread_idx = atc->thread_idx;
+    // bThreads = (atc->nthread > 1);
+    // if (bThreads)
+    // {
+    //     thread_idx = atc->thread_idx;
 
-        tpl   = &atc->thread_plist[thread];
-        tpl_n = tpl->n;
-        for (i = 0; i < atc->nthread; i++)
-        {
-            tpl_n[i] = 0;
-        }
-    }
+    //     tpl   = &atc->thread_plist[thread];
+    //     tpl_n = tpl->n;
+    //     for (i = 0; i < atc->nthread; i++)
+    //     {
+    //         tpl_n[i] = 0;
+    //     }
+    // }
 
     for (i = start; i < end; i++)
     {
@@ -149,54 +150,55 @@ static void calc_interpolation_idx(struct gmx_pme_t *pme, pme_atomcomm_t *atc,
         fclose(fp);
 #endif
 
-#ifdef DEBUG
-        range_check(idxptr[XX], 0, pme->pmegrid_nx);
-        range_check(idxptr[YY], 0, pme->pmegrid_ny);
-        range_check(idxptr[ZZ], 0, pme->pmegrid_nz);
-#endif
+// #ifdef DEBUG
+//         range_check(idxptr[XX], 0, pme->pmegrid_nx);
+//         range_check(idxptr[YY], 0, pme->pmegrid_ny);
+//         range_check(idxptr[ZZ], 0, pme->pmegrid_nz);
+// #endif
 
-        if (bThreads)
-        {
-            thread_i      = g2tx[idxptr[XX]] + g2ty[idxptr[YY]] + g2tz[idxptr[ZZ]];
-            thread_idx[i] = thread_i;
-            tpl_n[thread_i]++;
-        }
-    }
+        // if (bThreads)
+        // {
+        //     thread_i      = g2tx[idxptr[XX]] + g2ty[idxptr[YY]] + g2tz[idxptr[ZZ]];
+        //     thread_idx[i] = thread_i;
+        //     tpl_n[thread_i]++;
+        // }
+    } // end of for
 
-    if (bThreads)
-    {
-        /* Make a list of particle indices sorted on thread */
+    // if (bThreads)
+    // {
+    //     /* Make a list of particle indices sorted on thread */
 
-        /* Get the cumulative count */
-        for (i = 1; i < atc->nthread; i++)
-        {
-            tpl_n[i] += tpl_n[i-1];
-        }
-        /* The current implementation distributes particles equally
-         * over the threads, so we could actually allocate for that
-         * in pme_realloc_atomcomm_things.
-         */
-        if (tpl_n[atc->nthread-1] > tpl->nalloc)
-        {
-            tpl->nalloc = over_alloc_large(tpl_n[atc->nthread-1]);
-            srenew(tpl->i, tpl->nalloc);
-        }
-        /* Set tpl_n to the cumulative start */
-        for (i = atc->nthread-1; i >= 1; i--)
-        {
-            tpl_n[i] = tpl_n[i-1];
-        }
-        tpl_n[0] = 0;
+    //     /* Get the cumulative count */
+    //     for (i = 1; i < atc->nthread; i++)
+    //     {
+    //         tpl_n[i] += tpl_n[i-1];
+    //     }
+    //     /* The current implementation distributes particles equally
+    //      * over the threads, so we could actually allocate for that
+    //      * in pme_realloc_atomcomm_things.
+    //      */
+    //     if (tpl_n[atc->nthread-1] > tpl->nalloc)
+    //     {
+    //         tpl->nalloc = over_alloc_large(tpl_n[atc->nthread-1]);
+    //         srenew(tpl->i, tpl->nalloc);
+    //     }
+    //     /* Set tpl_n to the cumulative start */
+    //     for (i = atc->nthread-1; i >= 1; i--)
+    //     {
+    //         tpl_n[i] = tpl_n[i-1];
+    //     }
+    //     tpl_n[0] = 0;
 
-        /* Fill our thread local array with indices sorted on thread */
-        for (i = start; i < end; i++)
-        {
-            tpl->i[tpl_n[atc->thread_idx[i]]++] = i;
-        }
-        /* Now tpl_n contains the cummulative count again */
-    }
+    //     /* Fill our thread local array with indices sorted on thread */
+    //     for (i = start; i < end; i++)
+    //     {
+    //         tpl->i[tpl_n[atc->thread_idx[i]]++] = i;
+    //     }
+    //     /* Now tpl_n contains the cummulative count again */
+    // }
 }
 
+#if 0
 static void make_thread_local_ind(pme_atomcomm_t *atc,
                                   int thread, splinedata_t *spline)
 {
@@ -224,6 +226,7 @@ static void make_thread_local_ind(pme_atomcomm_t *atc,
 
     spline->n = n;
 }
+#endif
 
 /* Macro to force loop unrolling by fixing order.
  * This gives a significant performance gain.
@@ -329,7 +332,7 @@ static void make_bsplines(splinevec theta, splinevec dtheta, int order,
 static void spread_coefficients_bsplines_thread(pmegrid_t                         *pmegrid,
                                                 pme_atomcomm_t                    *atc,
                                                 splinedata_t                      *spline,
-                                                struct pme_spline_work gmx_unused *work)
+                                                struct pme_spline_work *work)
 {
 
     /* spread coefficients from home atoms to local grid */
@@ -960,14 +963,14 @@ void spread_on_grid(struct gmx_pme_t *pme,
             calc_interpolation_idx(pme, atc, start, grid_index, end, thread);
         }
     }
-#ifdef PME_TIME_THREADS
-    c1   = omp_cyc_end(c1);
-    cs1 += (double)c1;
-#endif
-
-#ifdef PME_TIME_THREADS
-    c2 = omp_cyc_start();
-#endif
+// #ifdef PME_TIME_THREADS
+//     c1   = omp_cyc_end(c1);
+//     cs1 += (double)c1;
+// #endif
+// 
+// #ifdef PME_TIME_THREADS
+//     c2 = omp_cyc_start();
+// #endif
 #pragma omp parallel for num_threads(nthread) schedule(static)
     for (thread = 0; thread < nthread; thread++)
     {
@@ -986,23 +989,23 @@ void spread_on_grid(struct gmx_pme_t *pme,
                 grid = &grids->grid;
             }
         }
-        else
-        {
-            spline = &atc->spline[thread];
+        // else
+        // {
+        //     spline = &atc->spline[thread];
 
-            if (grids->nthread == 1)
-            {
-                /* One thread, we operate on all coefficients */
-                spline->n = atc->n;
-            }
-            else
-            {
-                /* Get the indices our thread should operate on */
-                make_thread_local_ind(atc, thread, spline);
-            }
+        //     if (grids->nthread == 1)
+        //     {
+        //         /* One thread, we operate on all coefficients */
+        //         spline->n = atc->n;
+        //     }
+        //     else
+        //     {
+        //         /* Get the indices our thread should operate on */
+        //         make_thread_local_ind(atc, thread, spline);
+        //     }
 
-            grid = &grids->grid_th[thread];
-        }
+        //     grid = &grids->grid_th[thread];
+        // }
 
         if (bCalcSplines)
         {
@@ -1013,68 +1016,68 @@ void spread_on_grid(struct gmx_pme_t *pme,
         if (bSpread)
         {
             /* put local atoms on grid. */
-#ifdef PME_TIME_SPREAD
-            ct1a = omp_cyc_start();
-#endif
+// #ifdef PME_TIME_SPREAD
+//             ct1a = omp_cyc_start();
+// #endif
             spread_coefficients_bsplines_thread(grid, atc, spline, pme->spline_work);
 
             // if (pme->bUseThreads)
             // {
             //     copy_local_grid(pme, grids, grid_index, thread, fftgrid);
             // }
-#ifdef PME_TIME_SPREAD
-            ct1a          = omp_cyc_end(ct1a);
-            cs1a[thread] += (double)ct1a;
-#endif
+// #ifdef PME_TIME_SPREAD
+//             ct1a          = omp_cyc_end(ct1a);
+//             cs1a[thread] += (double)ct1a;
+// #endif
         }
     }
-#ifdef PME_TIME_THREADS
-    c2   = omp_cyc_end(c2);
-    cs2 += (double)c2;
-#endif
+// #ifdef PME_TIME_THREADS
+//     c2   = omp_cyc_end(c2);
+//     cs2 += (double)c2;
+// #endif
 
-    if (bSpread && pme->bUseThreads)
-    {
-#ifdef PME_TIME_THREADS
-        c3 = omp_cyc_start();
-#endif
-// #pragma omp parallel for num_threads(grids->nthread) schedule(static)
-//         for (thread = 0; thread < grids->nthread; thread++)
+//     if (bSpread && pme->bUseThreads)
+//     {
+// #ifdef PME_TIME_THREADS
+//         c3 = omp_cyc_start();
+// #endif
+// // #pragma omp parallel for num_threads(grids->nthread) schedule(static)
+// //         for (thread = 0; thread < grids->nthread; thread++)
+// //         {
+// //             reduce_threadgrid_overlap(pme, grids, thread,
+// //                                       fftgrid,
+// //                                       pme->overlap[0].sendbuf,
+// //                                       pme->overlap[1].sendbuf,
+// //                                       grid_index);
+// //         }
+// #ifdef PME_TIME_THREADS
+//         c3   = omp_cyc_end(c3);
+//         cs3 += (double)c3;
+// #endif
+// 
+//         // if (pme->nnodes > 1)
+//         // {
+//         //     /* Communicate the overlapping part of the fftgrid.
+//         //      * For this communication call we need to check pme->bUseThreads
+//         //      * to have all ranks communicate here, regardless of pme->nthread.
+//         //      */
+//         //     sum_fftgrid_dd(pme, fftgrid, grid_index);
+//         // }
+//     }
+
+// #ifdef PME_TIME_THREADS
+//     cnt++;
+//     if (cnt % 20 == 0)
+//     {
+//         printf("idx %.2f spread %.2f red %.2f",
+//                cs1*1e-9, cs2*1e-9, cs3*1e-9);
+// #ifdef PME_TIME_SPREAD
+//         for (thread = 0; thread < nthread; thread++)
 //         {
-//             reduce_threadgrid_overlap(pme, grids, thread,
-//                                       fftgrid,
-//                                       pme->overlap[0].sendbuf,
-//                                       pme->overlap[1].sendbuf,
-//                                       grid_index);
+//             printf(" %.2f", cs1a[thread]*1e-9);
 //         }
-#ifdef PME_TIME_THREADS
-        c3   = omp_cyc_end(c3);
-        cs3 += (double)c3;
-#endif
-
-        // if (pme->nnodes > 1)
-        // {
-        //     /* Communicate the overlapping part of the fftgrid.
-        //      * For this communication call we need to check pme->bUseThreads
-        //      * to have all ranks communicate here, regardless of pme->nthread.
-        //      */
-        //     sum_fftgrid_dd(pme, fftgrid, grid_index);
-        // }
-    }
-
-#ifdef PME_TIME_THREADS
-    cnt++;
-    if (cnt % 20 == 0)
-    {
-        printf("idx %.2f spread %.2f red %.2f",
-               cs1*1e-9, cs2*1e-9, cs3*1e-9);
-#ifdef PME_TIME_SPREAD
-        for (thread = 0; thread < nthread; thread++)
-        {
-            printf(" %.2f", cs1a[thread]*1e-9);
-        }
-#endif
-        printf("\n");
-    }
-#endif
+// #endif
+//         printf("\n");
+//     }
+// #endif
 }

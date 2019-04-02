@@ -143,6 +143,7 @@
 #endif
 
 
+#if 0
 #ifdef PME_SPREAD_SIMD4_ALIGNED
 /* This code assumes that the grid is allocated 4-real aligned
  * and that pnz is a multiple of 4.
@@ -248,6 +249,7 @@
 }
 #undef PME_ORDER
 #undef PME_SPREAD_SIMD4_ALIGNED
+#endif
 #endif
 
 
