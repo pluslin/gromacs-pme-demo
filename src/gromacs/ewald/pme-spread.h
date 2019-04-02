@@ -37,7 +37,7 @@
 #ifndef GMX_EWALD_PME_SPREAD_H
 #define GMX_EWALD_PME_SPREAD_H
 
-#include "../utility/real.h"
+#include "gromacs/utility/real.h"
 
 //#include "pme-internal.h"
 #include "pme-type.h"

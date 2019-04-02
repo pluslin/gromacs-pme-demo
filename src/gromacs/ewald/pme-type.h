@@ -53,12 +53,12 @@
 #ifndef GMX_EWALD_PME_INTERNAL_H
 #define GMX_EWALD_PME_INTERNAL_H
 
-#include "../../config.h"
+#include "config.h"
 
 #include <stdio.h>
 
-#include "../utility/basedefinitions.h"
-#include "../math/vectypes.h"
+#include "gromacs/utility/basedefinitions.h"
+#include "gromacs/math/vectypes.h"
 
 //@{
 //! Grid indices for A state for charge and Lennard-Jones C6

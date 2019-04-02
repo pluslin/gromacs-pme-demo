@@ -1,4 +1,4 @@
-#include "../ewald/pme-malloc-free.h"
+#include "pme-malloc-free.h"
 
 void save_free(const char *name, const char *file, int line, void *ptr)
 {

@@ -38,14 +38,14 @@
 
 #include "pme-spread.h"
 
-#include "../../config.h"
+#include "config.h"
 
 #include <assert.h>
 
 #include <algorithm>
 
 // #include "gromacs/ewald/pme.h"
-#include "../simd/simd.h"
+#include "gromacs/simd/simd.h"
 //#include "gromacs/utility/smalloc.h"
 
 //#include "pme-internal.h"

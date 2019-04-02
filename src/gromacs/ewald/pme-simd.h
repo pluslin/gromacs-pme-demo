@@ -36,7 +36,7 @@
 #define GMX_EWALD_PME_SIMD_H
 
 /* Include the SIMD macro file and then check for support */
-#include "../simd/simd.h"
+#include "gromacs/simd/simd.h"
 
 /* Check if we have 4-wide SIMD macro support */
 #if (defined GMX_SIMD4_HAVE_REAL)

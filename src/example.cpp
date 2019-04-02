@@ -1,6 +1,6 @@
-#include "pme-spread.h"
-#include "pme-malloc-free.h"
-#include "pme-type.h"
+#include "gromacs/ewald/pme-spread.h"
+#include "gromacs/ewald/pme-malloc-free.h"
+#include "gromacs/ewald/pme-type.h"
 
 void write_grid(real * grid);
 void read_grid(real * &grid);
