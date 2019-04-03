@@ -6,6 +6,7 @@ void write_grid(real * grid);
 void read_grid(real * &grid);
 bool check_grid(real *ref_grid, real *com_grid);
 
+// fftgrid并没有在spread_on_grid过程发挥作用
 int main() {
     bool is_right;
     real *fftgrid = NULL;
@@ -16,7 +17,7 @@ int main() {
     //printf("coordinate %f\n", pme->atc[0].x[1][2]);
     //printf("efficient %f\n", pme->atc[0].coefficient[222]);
 
-    spread_on_grid(pme, &pme->atc[0], &pme->pmegrid[0], 1, 1, fftgrid, 1, 0);
+    spread_on_grid_new(pme, &pme->atc[0], &pme->pmegrid[0], 1, 1, fftgrid, 1, 0);
     
 // CHECK
     //write_grid(pme->pmegrid[0].grid.grid);

@@ -106,12 +106,12 @@ typedef struct {
 } splinedata_t;
 
 typedef struct {
-    int      n;
-    rvec    *x;
-    ivec    *idx;
-    rvec    *fractx;
-    real    *coefficient;
-    splinedata_t   *spline;
+    int             n;
+    rvec            *x;
+    ivec            *idx;
+    rvec            *fractx;
+    real            *coefficient;
+    splinedata_t    *spline;
 }pme_atomcomm_t;
 
 typedef struct {
