@@ -17,7 +17,7 @@ int main() {
     //printf("coordinate %f\n", pme->atc[0].x[1][2]);
     //printf("efficient %f\n", pme->atc[0].coefficient[222]);
 
-    spread_on_grid_new(pme, &pme->atc[0], &pme->pmegrid[0], 1, 1, fftgrid, 1, 0);
+    spread_on_grid_new_v1(pme, &pme->atc[0], &pme->pmegrid[0], 1, 1, fftgrid, 1, 0);
     
 // CHECK
     //write_grid(pme->pmegrid[0].grid.grid);

@@ -40,6 +40,55 @@
  * and to remove conditionals and variable loop bounds at compile time.
  */
 
+#ifdef PME_SPREAD_SIMD4_ORDER4_V1
+/* Spread one charge with pme_order=4 with unaligned SIMD4 load+store.
+ * This code does not assume any memory alignment for the grid.
+ */
+{
+    gmx_simd4_real_t ty_S0, ty_S1, ty_S2, ty_S3;
+    gmx_simd4_real_t tz_S;
+    gmx_simd4_real_t vx_S;
+    gmx_simd4_real_t vx_tz_S;
+    gmx_simd4_real_t sum_S0, sum_S1, sum_S2, sum_S3;
+    gmx_simd4_real_t gri_S0, gri_S1, gri_S2, gri_S3;
+
+    ty_S0 = gmx_simd4_set1_r(thy[0]);
+    ty_S1 = gmx_simd4_set1_r(thy[1]);
+    ty_S2 = gmx_simd4_set1_r(thy[2]);
+    ty_S3 = gmx_simd4_set1_r(thy[3]);
+
+    /* With order 4 the z-spline is actually aligned */
+    tz_S  = gmx_simd4_load_r(thz);
+
+    for (ithx = 0; (ithx < 4); ithx++)
+    {
+        index_x = (i0+ithx)*sgdy*sgdz;
+        valx    = coefficient*thx[ithx];
+
+        vx_S   = gmx_simd4_set1_r(valx);
+
+        vx_tz_S = gmx_simd4_mul_r(vx_S, tz_S);
+
+        gri_S0 = gmx_simd4_loadu_r(sub_grid+index_x+(j0+0)*sgdz+k0);
+        gri_S1 = gmx_simd4_loadu_r(sub_grid+index_x+(j0+1)*sgdz+k0);
+        gri_S2 = gmx_simd4_loadu_r(sub_grid+index_x+(j0+2)*sgdz+k0);
+        gri_S3 = gmx_simd4_loadu_r(sub_grid+index_x+(j0+3)*sgdz+k0);
+
+        sum_S0 = gmx_simd4_fmadd_r(vx_tz_S, ty_S0, gri_S0);
+        sum_S1 = gmx_simd4_fmadd_r(vx_tz_S, ty_S1, gri_S1);
+        sum_S2 = gmx_simd4_fmadd_r(vx_tz_S, ty_S2, gri_S2);
+        sum_S3 = gmx_simd4_fmadd_r(vx_tz_S, ty_S3, gri_S3);
+
+        gmx_simd4_storeu_r(sub_grid+index_x+(j0+0)*sgdz+k0, sum_S0);
+        gmx_simd4_storeu_r(sub_grid+index_x+(j0+1)*sgdz+k0, sum_S1);
+        gmx_simd4_storeu_r(sub_grid+index_x+(j0+2)*sgdz+k0, sum_S2);
+        gmx_simd4_storeu_r(sub_grid+index_x+(j0+3)*sgdz+k0, sum_S3);
+    }
+}
+#undef PME_SPREAD_SIMD4_ORDER4_V1
+#endif
+
+
 #ifdef PME_SPREAD_SIMD4_ORDER4
 /* Spread one charge with pme_order=4 with unaligned SIMD4 load+store.
  * This code does not assume any memory alignment for the grid.

@@ -50,6 +50,10 @@
 
 /*  #define WRITE_DATA */
 
+#define SUB_GRID_X 4
+#define SUB_GRID_Y 8
+#define SUB_GRID_Z 8
+
 /* TODO consider split of pme-spline from this file */
 
 static void calc_interpolation_idx(struct gmx_pme_t *pme, pme_atomcomm_t *atc,
@@ -467,10 +471,11 @@ void spread_on_grid_new(struct gmx_pme_t *pme,
     grid = grids->grid.grid;
     order = pmegrid->order;
 
-    for (i = 0; i < ndatatot; i++)
-    {
-        grid[i] = 0;
-    }
+    // 内存分配时已经使用calloc将grid清0了
+    // for (i = 0; i < ndatatot; i++)
+    // {
+    //     grid[i] = 0;
+    // }
 
 
     for(i = start; i < end; i++) 
@@ -528,5 +533,216 @@ void spread_on_grid_new(struct gmx_pme_t *pme,
         }
     
     }
+
+}
+
+
+
+/* This has to be a macro to enable full compiler optimization with xlC (and probably others too) */
+#define DO_BSPLINE_v1(order)                            \
+    for (ithx = 0; (ithx < order); ithx++)                    \
+    {                                                    \
+        index_x = (i0+ithx)*sgdy*sgdz;                     \
+        valx    = coefficient*thx[ithx];                          \
+                                                     \
+        for (ithy = 0; (ithy < order); ithy++)                \
+        {                                                \
+            valxy    = valx*thy[ithy];                   \
+            index_xy = index_x+(j0+ithy)*sgdz;            \
+                                                     \
+            for (ithz = 0; (ithz < order); ithz++)            \
+            {                                            \
+                index_xyz        = index_xy+(k0+ithz);   \
+                sub_grid[index_xyz] += valxy*thz[ithz];      \
+            }                                            \
+        }                                                \
+    }
+
+void spread_on_grid_new_v1(struct gmx_pme_t *pme,
+                        pme_atomcomm_t *atc, pmegrids_t *grids,
+                        gmx_bool bCalcSplines, gmx_bool bSpread,
+                        real *fftgrid, gmx_bool bDoSplines, int grid_index)
+{
+    int             i, ii, jj, kk;
+    int             start, end;
+    int             nx, ny, nz;
+    real            rxx, ryx, ryy, rzx, rzy, rzz;
+    int            *idxptr, tix, tiy, tiz;
+    real           *xptr, *fptr, tx, ty, tz;
+    pmegrid_t      *pmegrid;
+    real           *grid;
+    splinedata_t   *spline;
+    int            pnx, pny, pnz, ndatatot;
+    int            offx, offy, offz;
+    real           coefficient;
+    int            order, norder;
+    int            i0, j0, k0;
+    real          *thx, *thy, *thz;
+    int            ithx, ithy, ithz;
+    int            index_x, index_xy, index_xyz;
+    real           valx, valxy;
+    real           *sub_grid;               // 存储子网格内容
+    int            sub_grid_base[DIM];      // 存储子网格相对于原网格的索引
+    int            sub_grid_sub_order[DIM]; // 计算子网格边长减去order的大小
+    int            sgdx, sgdy, sgdz;        // 子网格三维边长 sub_grid_dimension[DIM]
+    int            g_index, sg_index;       // 使用子网格更新网格时，计算二者的索引
+    // 边界处理{SUBGRID > order时发生}：防止子网格边缘超出原网格边缘(防止上界即可),然后网格更新时使用这个值
+    int            sub_boundx, sub_boundy, sub_boundz; 
+    int            idxptr_offset[DIM];      // 原子索引相对于子网格的偏移索引 idxptr = atc->idx[i] ; idxptr[i][DIM](pme->nnx[tix]) - sub_grid_base[DIM]
+
+    start = 0;
+    end = atc->n;
+
+    nx  = pme->nkx;
+    ny  = pme->nky;
+    nz  = pme->nkz;    
+
+    rxx = pme->recipbox[XX][XX];
+    ryx = pme->recipbox[YY][XX];
+    ryy = pme->recipbox[YY][YY];
+    rzx = pme->recipbox[ZZ][XX];
+    rzy = pme->recipbox[ZZ][YY];
+    rzz = pme->recipbox[ZZ][ZZ];
+
+    spline = &atc->spline[0];
+
+    pmegrid = &grids->grid;
+
+    pnx = pmegrid->s[XX];
+    pny = pmegrid->s[YY];
+    pnz = pmegrid->s[ZZ];
+
+    offx = pmegrid->offset[XX];
+    offy = pmegrid->offset[YY];
+    offz = pmegrid->offset[ZZ];
+
+    ndatatot = pnx*pny*pnz;
+    grid = grids->grid.grid;
+    order = pmegrid->order;
+
+    sgdx = SUB_GRID_X;
+    sgdy = SUB_GRID_Y;
+    sgdz = SUB_GRID_Z;
+
+    sub_grid_sub_order[XX] = sgdx - order;
+    sub_grid_sub_order[YY] = sgdy - order;
+    sub_grid_sub_order[ZZ] = sgdz - order;
+    sub_grid = (real *)calloc(sgdx*sgdy*sgdz, sizeof(real));
+
+    // 内存分配时已经使用calloc将grid清0了
+    // for (i = 0; i < ndatatot; i++)
+    // {
+    //     grid[i] = 0;
+    // }
+
+    for(i = start; i < end; i++) 
+    {
+        coefficient = atc->coefficient[i];
+        if(0.0 == coefficient) continue;
+        xptr   = atc->x[i];
+        
+        /* Fractional coordinates along box vectors, add 2.0 to make 100% sure we are positive for triclinic boxes */
+        tx = nx * ( xptr[XX] * rxx + xptr[YY] * ryx + xptr[ZZ] * rzx + 2.0 );
+        ty = ny * (                  xptr[YY] * ryy + xptr[ZZ] * rzy + 2.0 );
+        tz = nz * (                                   xptr[ZZ] * rzz + 2.0 );        
+
+        tix = (int)(tx);
+        tiy = (int)(ty);
+        tiz = (int)(tz);
+
+        sub_grid_base[XX] = pme->nnx[tix];
+        sub_grid_base[YY] = pme->nny[tiy];
+        sub_grid_base[ZZ] = pme->nnz[tiz];
+
+        sub_boundx = (sub_grid_base[XX] + sgdx <= pnx) ? sgdx : (pnx - sub_grid_base[XX]);
+        sub_boundy = (sub_grid_base[YY] + sgdy <= pny) ? sgdy : (pny - sub_grid_base[YY]);
+        sub_boundz = (sub_grid_base[ZZ] + sgdz <= pnz) ? sgdz : (pnz - sub_grid_base[ZZ]);
+
+        while(1) {
+            coefficient = atc->coefficient[i];
+            if(0.0 == coefficient) {
+                i++;        // 计算下一个原子
+                continue;
+            } 
+
+            xptr   = atc->x[i];
+            fptr   = atc->fractx[i];
+            norder = i*order;
+
+            /* Fractional coordinates along box vectors, add 2.0 to make 100% sure we are positive for triclinic boxes */
+            tx = nx * ( xptr[XX] * rxx + xptr[YY] * ryx + xptr[ZZ] * rzx + 2.0 );
+            ty = ny * (                  xptr[YY] * ryy + xptr[ZZ] * rzy + 2.0 );
+            tz = nz * (                                   xptr[ZZ] * rzz + 2.0 );
+
+            tix = (int)(tx);
+            tiy = (int)(ty);
+            tiz = (int)(tz);
+
+            idxptr_offset[XX] = pme->nnx[tix] - sub_grid_base[XX];
+            idxptr_offset[YY] = pme->nny[tiy] - sub_grid_base[YY];
+            idxptr_offset[ZZ] = pme->nnz[tiz] - sub_grid_base[ZZ];
+
+            if(idxptr_offset[XX] > sub_grid_sub_order[XX] ||
+               idxptr_offset[YY] > sub_grid_sub_order[YY] ||
+               idxptr_offset[ZZ] > sub_grid_sub_order[ZZ] ||
+               idxptr_offset[XX] < 0 ||
+               idxptr_offset[YY] < 0 ||
+               idxptr_offset[ZZ] < 0)
+            {
+                i--;        // 外层循环i++，为了重新计算该原子所以有此操作
+                break;
+            }
+
+            /* Because decomposition only occurs in x and y,
+            * we never have a fraction correction in z.
+            */
+            fptr[XX] = tx - tix + pme->fshx[tix];
+            fptr[YY] = ty - tiy + pme->fshy[tiy];
+            fptr[ZZ] = tz - tiz;
+
+            CALC_SPLINE_NEW(4);
+
+            // idxptr[XX] - sub_grid_base[XX] 可以简化
+            i0   = idxptr_offset[XX] - offx;
+            j0   = idxptr_offset[YY] - offy;
+            k0   = idxptr_offset[ZZ] - offz;
+            
+            //printf("i0 = %d, j0 = %d, k0 = %d\n", i0, j0, k0);
+
+            thx = spline->theta[XX] + norder;
+            thy = spline->theta[YY] + norder;
+            thz = spline->theta[ZZ] + norder;
+            
+#ifdef PME_SIMD4_SPREAD_GATHER
+#ifdef PME_SIMD4_UNALIGNED
+#define PME_SPREAD_SIMD4_ORDER4_V1
+#else
+#define PME_SPREAD_SIMD4_ALIGNED
+#define PME_ORDER 4
+#endif
+#include "pme-simd4.h"
+#else
+                    DO_BSPLINE_v1(4);
+#endif
+            i++;
+
+            if(i == end - 1) break;
+        }   // end of while
+
+
+        // TODO: 用sub_grid更新grid
+        for(ii = 0; ii < sub_boundx; ii++) {
+            for(jj = 0; jj < sub_boundy; jj++) {
+                for(kk = 0; kk < sub_boundz; kk++) {
+                    g_index = (ii+sub_grid_base[XX])*pny*pnz + (jj+sub_grid_base[YY])*pnz + kk+sub_grid_base[ZZ];
+                    sg_index = ii*sgdy*sgdz + jj*sgdz + kk;
+                    grid[g_index] += sub_grid[sg_index];
+                    // TODO： sub_grid清零
+                    sub_grid[sg_index] = 0.0;
+                }
+            }
+        }
+
+    }   // end of for
 
 }
